@@ -12,7 +12,6 @@ if Code.ensure_loaded?(Postgrex) do
     def child_spec(opts) do
       opts
       |> Keyword.put_new(:port, @default_port)
-      |> Keyword.put_new(:types, Ecto.Adapters.Postgres.TypeModule)
       |> Postgrex.child_spec()
     end
 
@@ -195,8 +194,8 @@ if Code.ensure_loaded?(Postgrex) do
        ], exprs}
     end
 
-    defp from(%{from: from} = query, sources) do
-      {from, name} = get_source(query, sources, 0, from)
+    defp from(%{from: %{source: source}} = query, sources) do
+      {from, name} = get_source(query, sources, 0, source)
       [" FROM ", from, " AS " | name]
     end
 
@@ -546,12 +545,12 @@ if Code.ensure_loaded?(Postgrex) do
     defp create_names(prefix, sources, pos, limit) when pos < limit do
       current =
         case elem(sources, pos) do
+          {:fragment, _, _} ->
+            {nil, [?f | Integer.to_string(pos)], nil}
+
           {table, schema, _alias} ->
             name = [create_alias(table) | Integer.to_string(pos)]
             {quote_table(prefix, table), name, schema}
-
-          {:fragment, _, _} ->
-            {nil, [?f | Integer.to_string(pos)], nil}
 
           %Ecto.SubQuery{} ->
             {nil, [?s | Integer.to_string(pos)], nil}
