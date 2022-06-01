@@ -125,7 +125,8 @@ defmodule RedshiftEcto do
   def loaders(_, type), do: [type]
 
   defp json_decode(x) when is_binary(x) do
-    {:ok, Ecto.Adapter.json_library().decode!(x)}
+    library = Application.get_env(:postgrex, :json_library, Jason)
+    {:ok, library.decode!(x)}
   end
 
   defp json_decode(x), do: {:ok, x}
@@ -143,7 +144,8 @@ defmodule RedshiftEcto do
   def dumpers(_, type), do: [type]
 
   defp json_encode(%{} = x) do
-    {:ok, Ecto.Adapter.json_library().encode!(x)}
+    library = Application.get_env(:postgrex, :json_library, Jason)
+    {:ok, library.encode!(x)}
   end
 
   defp json_encode(x), do: {:ok, x}
@@ -151,6 +153,7 @@ defmodule RedshiftEcto do
   ## Storage API
 
   @doc false
+  @impl true
   def storage_up(opts) do
     database =
       Keyword.fetch!(opts, :database) || raise ":database is nil in repository configuration"
@@ -173,6 +176,7 @@ defmodule RedshiftEcto do
   end
 
   @doc false
+  @impl true
   def storage_down(opts) do
     database =
       Keyword.fetch!(opts, :database) || raise ":database is nil in repository configuration"
@@ -197,7 +201,9 @@ defmodule RedshiftEcto do
     true
   end
 
+  @impl true
   defdelegate structure_dump(default, config), to: Postgres
+  @impl true
   defdelegate structure_load(default, config), to: Postgres
 
   ## Helpers

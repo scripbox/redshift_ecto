@@ -23,6 +23,7 @@ if Code.ensure_loaded?(Postgrex) do
     defdelegate prepare_execute(conn, name, sql, params, opts), to: Postgres
     defdelegate execute(conn, sql_or_query, params, opts), to: Postgres
     defdelegate stream(conn, sql, params, opts), to: Postgres
+    defdelegate query(conn, sql, params, opts), to: Postgres
 
     alias Ecto.Query
     alias Ecto.Query.{BooleanExpr, JoinExpr, QueryExpr}
@@ -514,15 +515,15 @@ if Code.ensure_loaded?(Postgrex) do
     defp sources_unaliased(prefix, sources, pos, limit) when pos < limit do
       current =
         case elem(sources, pos) do
-          {table, schema, _alias} ->
-            quoted = quote_table(prefix, table)
-            {quoted, quoted, schema}
-
           {:fragment, _, _} ->
             error!(
               nil,
               "Redshift doesn't support fragment sources in UPDATE and DELETE statements"
             )
+
+          {table, schema, _alias} ->
+            quoted = quote_table(prefix, table)
+            {quoted, quoted, schema}
 
           %Ecto.SubQuery{} ->
             error!(
@@ -669,6 +670,32 @@ if Code.ensure_loaded?(Postgrex) do
 
     def execute_ddl(keyword) when is_list(keyword),
       do: error!(nil, "PostgreSQL adapter does not support keyword lists in execute")
+
+    def ddl_logs(%Postgrex.Result{} = result) do
+      %{messages: messages} = result
+
+      for message <- messages do
+        %{message: message, severity: severity} = message
+
+        {ddl_log_level(severity), message, []}
+      end
+    end
+
+    def table_exists_query(table) do
+      {"SELECT true FROM information_schema.tables WHERE table_name = $1 AND table_schema = current_schema() LIMIT 1",
+       [table]}
+    end
+
+    # From https://www.postgresql.org/docs/9.3/static/protocol-error-fields.html.
+    defp ddl_log_level("DEBUG"), do: :debug
+    defp ddl_log_level("LOG"), do: :info
+    defp ddl_log_level("INFO"), do: :info
+    defp ddl_log_level("NOTICE"), do: :info
+    defp ddl_log_level("WARNING"), do: :warn
+    defp ddl_log_level("ERROR"), do: :error
+    defp ddl_log_level("FATAL"), do: :error
+    defp ddl_log_level("PANIC"), do: :error
+    defp ddl_log_level(_severity), do: :info
 
     defp pk_definition(columns, prefix) do
       pks = for {_, name, _, opts} <- columns, opts[:primary_key], do: name
