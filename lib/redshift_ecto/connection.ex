@@ -1007,7 +1007,9 @@ if Code.ensure_loaded?(Postgrex) do
     defp ecto_to_db(:map), do: "varchar(max)"
     defp ecto_to_db({:map, _}), do: "varchar(max)"
     defp ecto_to_db(:utc_datetime), do: "timestamp"
+    defp ecto_to_db(:utc_datetime_usec), do: "timestamp"
     defp ecto_to_db(:naive_datetime), do: "timestamp"
+    defp ecto_to_db(:naive_datetime_usec), do: "timestamp"
     defp ecto_to_db(other), do: Atom.to_string(other)
 
     defp error!(nil, message) do
